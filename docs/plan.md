@@ -1,7 +1,7 @@
 # Project Plan — Code-Aware IDE Feature Set for Python
 
 **Course:** Compiler Design, K. N. Toosi University of Technology
-**Team:** Ali Kashi Pazha (referred to below as **A**), Mohammad (referred to below as **B**)
+**Team:** Ali Kashi Pazha (referred to below as **A**), Mohammad Izadi Moghadam (referred to below as **B**)
 **Status:** Awaiting approval. No code has been written yet.
 
 This document is the engineering plan for the project described in
