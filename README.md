@@ -58,35 +58,54 @@ A highly modular, professional-grade **Compiler Front-End** and **Static Program
 Compiler-Design-Project/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml             # GitHub Actions CI/CD pipeline
-├── src/
+│       └── ci.yml              # GitHub Actions CI/CD pipeline
+├── docs/                       # Project guidelines and pdf documentation
+│   ├── project_report.pdf
+│   └── project_requirements.pdf
+├── src/                        # Main compiler source package
 │   └── cc_analyzer/
-│       ├── core/
-│       │   ├── location.py    # Line and column tracking
-│       │   ├── tokens.py      # TokenType definitions & Token class
-│       │   ├── lexer.py       # Hand-written DFA Lexical Analyzer
-│       │   ├── ast_nodes.py   # Complete OOP AST Node classes
-│       │   └── parser.py      # LL(k) Recursive-Descent Parser
-│       ├── semantics/
-│       │   ├── symbol_table.py# Hierarchical lexical scopes
-│       │   ├── type_checker.py# C-type system visitor
-│       │   └── intellisense.py# Hover, completion & diagnostics
-│       ├── analysis/
-│       │   ├── cfg.py         # Basic block & CFG construction
-│       │   ├── call_graph.py  # Call graph & Tarjan SCCs
-│       │   ├── dominance.py   # Lengauer-Tarjan Dominator Tree
-│       │   ├── ssa.py         # Cytron SSA & Phi placements
-│       │   └── refactoring.py # Go-to-def, refs & Safe Rename
-│       └── presentation/
-│           ├── highlighter.py # ANSI/HTML syntax highlighter
-│           └── repl.py        # Interactive CLI console
-├── tests/                     # Comprehensive test suites (79 tests)
-│   ├── canonical_test.c       # C benchmark file for HTML page
-│   └── test_*.py              # pytest modules
-├── generate_report.py         # Automated HTML report generator script
-├── pytest.ini                 # Local coverage and test configurations
-├── requirements.txt           # Python package dependencies
-└── Dockerfile                 # Multi-stage lightweight Docker image
+│       ├── analysis/           # Graph analysis passes (CFG, Call Graph, SSA, Dominance)
+│       │   ├── call_graph.py
+│       │   ├── cfg.py
+│       │   ├── dominance.py
+│       │   ├── language_detector.py
+│       │   ├── refactoring.py
+│       │   └── ssa.py
+│       ├── core/               # Front-end pipeline (Lexer, Parser, AST, Tokens)
+│       │   ├── ast_nodes.py
+│       │   ├── lexer.py
+│       │   ├── location.py
+│       │   ├── parser.py
+│       │   └── tokens.py
+│       ├── presentation/       # CLI and UI representations (REPL, highlighter)
+│       │   ├── highlighter.py  
+│       │   └── repl.py         # Interactive CLI console
+│       └── semantics/          # Name & Type systems (TypeChecker, Symbol Table, Intellisense)
+│           ├── intellisense.py
+│           ├── symbol_table.py
+│           └── type_checker.py
+├── tests/                      # Automated testing suite (79 tests)
+│   ├── canonical_test.c        # C benchmark file for HTML page
+│   ├── test_call_graph.py
+│   ├── test_cfg.py
+│   ├── test_dominance.py
+│   ├── test_highlighter.py
+│   ├── test_intellisense.py
+│   ├── test_language_detector.py
+│   ├── test_lexer.py
+│   ├── test_parser.py
+│   ├── test_refactoring.py
+│   ├── test_repl.py
+│   ├── test_ssa.py
+│   └── test_type_checker.py
+├── dockerfile                  # Docker containerization config
+├── generate_report.py          # Automated HTML report generator script
+├── input.c                     # Sample C input file
+├── LICENSE                     # MIT License
+├── main.py                     # Master compiler compilation runner script
+├── pytest.ini                  # Local coverage and test configurations
+├── README.md                   # Project documentation
+└── requirements.txt            # Python package dependencies
 ```
 
 ---
