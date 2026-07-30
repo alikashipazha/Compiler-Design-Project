@@ -189,5 +189,3 @@ start htmlcov/index.html
 # On macOS/Linux:
 open htmlcov/index.html
 ```
-```
-```
