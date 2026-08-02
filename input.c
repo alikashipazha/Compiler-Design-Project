@@ -1,14 +1,24 @@
 #include <stdio.h>
 
-int main() {
-
-    int n1, n2, max, lcm;
-
+void func1() {
     printf("Enter two positive integers: ");
+}
+int main() {
+    // Each variable is declared on its own line (C Subset EBNF rules)
+    int n1;
+    int n2;
+    int max;
+    int lcm;
+
+    func1();
     scanf("%d %d", &n1, &n2);
 
-    // maximum number between n1 and n2 is stored in max
-    max = (n1 > n2) ? n1 : n2;
+    // Standard if-else statement instead of ternary operator
+    if (n1 > n2) {
+        max = n1;
+    } else {
+        max = n2;
+    }
 
     lcm = max;
 
