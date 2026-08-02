@@ -7,7 +7,6 @@ This repository contains the implementation of the compiler design project for t
 
 > ## Team Members
 > * **Ali Kashi Pazha** (Student ID: `40224641`)
-> * **Mohammad Izadi Moghadam** (Student ID: `40215233`)
 
 ---
 
