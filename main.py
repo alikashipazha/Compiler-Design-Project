@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import List
+from typing import List, Optional, Set, Dict, Tuple
 
 # Safe import of Graphviz to ensure 100% stability
 try:
@@ -138,6 +138,116 @@ class ASTPrinter:
             self.lines.append(f"{prefix}StringLiteral: {node.value}")
 
 
+class ASTVisualizer:
+    """AST Visitor that renders the entire Abstract Syntax Tree (AST) hierarchically into a PNG (Section 7 - Bonus)."""
+    def __init__(self):
+        self.dot: Optional[Digraph] = None
+        self.node_counter = 0
+
+    def visualize(self, node: ASTNode, output_dir: str):
+        self.dot = Digraph(name="AST", format="png")
+        self.dot.attr(bgcolor="#1e1e1e", fontcolor="#ffffff")
+        self.dot.attr('node', style='filled', fillcolor='#2d2d2d', color='#569cd6', fontcolor='#ffffff', fontname='Consolas', shape='box')
+        self.dot.attr('edge', color='#a9a9a9')
+        self.node_counter = 0
+        
+        self._visit(node, None)
+        
+        os.makedirs(output_dir, exist_ok=True)
+        self.dot.render(os.path.join(output_dir, "ast"), cleanup=True)
+
+    def _new_id(self) -> str:
+        self.node_counter += 1
+        return f"node_{self.node_counter}"
+
+    def _visit(self, node: ASTNode, parent_id: Optional[str]) -> str:
+        curr_id = self._new_id()
+        
+        # Determine labels for beautiful dark-themed blocks
+        label = type(node).__name__
+        if isinstance(node, VarDecl):
+            label = f"VarDecl\\n{node.type_spec} '{node.identifier}'"
+        elif isinstance(node, FunctionDecl):
+            label = f"FunctionDecl\\n{node.type_spec} {node.identifier}()"
+        elif isinstance(node, StructDecl):
+            label = f"StructDecl\\nstruct {node.identifier}"
+        elif isinstance(node, Identifier):
+            label = f"Identifier\\n'{node.name}'"
+        elif isinstance(node, IntLiteral):
+            label = f"IntLiteral\\n{node.raw_value}"
+        elif isinstance(node, FloatLiteral):
+            label = f"FloatLiteral\\n{node.raw_value}"
+        elif isinstance(node, CharLiteral):
+            label = f"CharLiteral\\n{node.value}"
+        elif isinstance(node, StringLiteral):
+            label = f"StringLiteral\\n{node.value}"
+        elif isinstance(node, AssignmentExpr):
+            label = f"AssignmentExpr\\n'{node.operator}'"
+        elif isinstance(node, BinaryExpr):
+            label = f"BinaryExpr\\n'{node.operator}'"
+        elif isinstance(node, UnaryExpr):
+            label = f"UnaryExpr\\n'{node.operator}'"
+            
+        self.dot.node(curr_id, label)
+        
+        if parent_id is not None:
+            self.dot.edge(parent_id, curr_id)
+
+        # Traverse nested child nodes recursively
+        if isinstance(node, Program):
+            for decl in node.declarations:
+                self._visit(decl, curr_id)
+        elif isinstance(node, VarDecl):
+            if node.initializer:
+                self._visit(node.initializer, curr_id)
+        elif isinstance(node, FunctionDecl):
+            self._visit(node.block, curr_id)
+        elif isinstance(node, StructDecl):
+            for m in node.members:
+                self._visit(m, curr_id)
+        elif isinstance(node, Block):
+            for stmt in node.statements:
+                self._visit(stmt, curr_id)
+        elif isinstance(node, IfStmt):
+            self._visit(node.condition, curr_id)
+            self._visit(node.then_branch, curr_id)
+            if node.else_branch:
+                self._visit(node.else_branch, curr_id)
+        elif isinstance(node, WhileStmt):
+            self._visit(node.condition, curr_id)
+            self._visit(node.body, curr_id)
+        elif isinstance(node, ForStmt):
+            if node.init: self._visit(node.init, curr_id)
+            if node.condition: self._visit(node.condition, curr_id)
+            if node.increment: self._visit(node.increment, curr_id)
+            self._visit(node.body, curr_id)
+        elif isinstance(node, ReturnStmt):
+            if node.expression:
+                self._visit(node.expression, curr_id)
+        elif isinstance(node, ExprStmt):
+            if node.expression:
+                self._visit(node.expression, curr_id)
+        elif isinstance(node, AssignmentExpr):
+            self._visit(node.target, curr_id)
+            self._visit(node.value, curr_id)
+        elif isinstance(node, BinaryExpr):
+            self._visit(node.left, curr_id)
+            self._visit(node.right, curr_id)
+        elif isinstance(node, UnaryExpr):
+            self._visit(node.target, curr_id)
+        elif isinstance(node, CallExpr):
+            self._visit(node.callee, curr_id)
+            for arg in node.arguments:
+                self._visit(arg, curr_id)
+        elif isinstance(node, ArrayAccessExpr):
+            self._visit(node.target, curr_id)
+            self._visit(node.index, curr_id)
+        elif isinstance(node, MemberAccessExpr):
+            self._visit(node.target, curr_id)
+            
+        return curr_id
+
+
 def print_scope_tree_to_lines(scope: Scope, lines: List[str], indent: int = 0):
     """Recursively dumps the Scope Hierarchical Tree into formatted string lines."""
     prefix = "  " * indent
@@ -249,6 +359,44 @@ def _render_call_graph_png(cg: CallGraph, output_dir: str):
     except Exception:
         pass
 
+def _render_symbol_table_png(global_scope: Scope, output_dir: str):
+    """Silently renders the hierarchical Symbol Table & Scopes into a structured PNG (Section 7 - Bonus)."""
+    if not HAS_GRAPHVIZ:
+        return
+    try:
+        # We use HTML-like labels supported by Graphviz to render clean, aligned tables inside nodes
+        dot = Digraph(name="Symbol_Table", format="png")
+        dot.attr(bgcolor="#1e1e1e", fontcolor="#ffffff", rankdir="TB")
+        dot.attr('node', style='filled', fillcolor='#2d2d2d', color='#569cd6', fontcolor='#ffffff', fontname='Consolas', shape='none')
+        dot.attr('edge', color='#a9a9a9', arrowhead='none')
+
+        def build_scope_node(scope: Scope):
+            # Use Python's unique object memory address id() to prevent Graphviz Node ID collisions!
+            scope_id = f"scope_{id(scope)}"
+            
+            # Build HTML table for this scope's symbols
+            rows = [
+                f'<tr><td colspan="3" bgcolor="#569cd6"><b><font color="#ffffff">Scope: {scope.name}</font></b></td></tr>',
+                f'<tr bgcolor="#2d2d2d"><td><b><font color="#569cd6">Name</font></b></td><td><b><font color="#569cd6">Kind</font></b></td><td><b><font color="#569cd6">Type</font></b></td></tr>'
+            ]
+            
+            for symbol in scope.symbols.values():
+                rows.append(f'<tr><td><font color="#ffffff">{symbol.name}</font></td><td><font color="#4ec9b0">{symbol.kind}</font></td><td><font color="#ce9178">{symbol.type}</font></td></tr>')
+                
+            label_str = f'<<table border="1" cellborder="1" cellspacing="0">{"".join(rows)}</table>>'
+            dot.node(scope_id, label_str)
+
+            if scope.parent:
+                parent_id = f"scope_{id(scope.parent)}"
+                dot.edge(parent_id, scope_id)
+
+            for child in scope.children:
+                build_scope_node(child)
+
+        build_scope_node(global_scope)
+        dot.render(os.path.join(output_dir, "symbol_table"), cleanup=True)
+    except Exception:
+        pass
 
 def main():
     # Determine the input source file (defaults to input.c)
@@ -317,6 +465,12 @@ def main():
         else:
             f.write("Parse tree could not be generated (empty program or parse crashed).")
 
+    # Render physical AST Tree PNG representation (Section 7 - Bonus)
+    if HAS_GRAPHVIZ and ast_program:
+        visualizer = ASTVisualizer()
+        visualizer.visualize(ast_program, output_dir)
+        print(f"[Visual Graph Saved: 'output/ast.png']")
+
     # ==========================================
     # PHASE 3: SEMANTIC ANALYSIS
     # ==========================================
@@ -341,6 +495,11 @@ def main():
         scope_lines = []
         print_scope_tree_to_lines(type_checker.global_scope, scope_lines)
         f.write("\n".join(scope_lines))
+
+    # Render physical Symbol Table PNG representation (Section 7 - Bonus)
+    if HAS_GRAPHVIZ:
+        _render_symbol_table_png(type_checker.global_scope, output_dir)
+        print(f"[Visual Graph Saved: 'output/symbol_table.png']")
 
     # ==========================================
     # PHASE 4: ADVANCED GRAPHS & SSA FORM
