@@ -163,6 +163,7 @@ class Lexer:
             ']': TokenType.RBRACK,
             ';': TokenType.SEMICOLON,
             ',': TokenType.COMMA,
+            '!': TokenType.OP_NOT, # <--- Added standalone NOT operator
         }
 
         if char in single_tokens:
@@ -176,9 +177,14 @@ class Lexer:
             char = self._peek()
             if char in (' ', '\t', '\r', '\n'):
                 self._advance()
+            elif char == '#':
+                # C Preprocessor Directive (Section 7 - Bonus): skip the entire preprocessor line
+                self._advance() # consume '#'
+                while self.position < self.length and self._peek() != '\n':
+                    self._advance()
             elif char == '/' and self._peek(1) == '/' and not keep_comments:
-                self._advance()  # '/'
-                self._advance()  # '/'
+                self._advance()
+                self._advance()
                 while self.position < self.length and self._peek() != '\n':
                     self._advance()
             elif char == '/' and self._peek(1) == '*' and not keep_comments:
@@ -191,12 +197,12 @@ class Lexer:
                     temp_pos += 1
                 
                 if terminated:
-                    self._advance()  # '/'
-                    self._advance()  # '*'
+                    self._advance()
+                    self._advance()
                     while self.position < temp_pos:
                         self._advance()
-                    self._advance()  # '*'
-                    self._advance()  # '/'
+                    self._advance()
+                    self._advance()
                 else:
                     break
             else:
