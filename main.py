@@ -2,6 +2,13 @@ import os
 import sys
 from typing import List
 
+# Safe import of Graphviz to ensure 100% stability
+try:
+    from graphviz import Digraph
+    HAS_GRAPHVIZ = True
+except ImportError:
+    HAS_GRAPHVIZ = False
+
 # Set path configuration so python can resolve our core packages
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
 
@@ -11,7 +18,7 @@ from cc_analyzer.core.lexer import Lexer
 from cc_analyzer.core.parser import Parser
 from cc_analyzer.semantics.symbol_table import Scope, Symbol
 from cc_analyzer.semantics.type_checker import TypeChecker
-from cc_analyzer.analysis.cfg import CFGBuilder, CFG
+from cc_analyzer.analysis.cfg import CFGBuilder, CFG, BasicBlock
 from cc_analyzer.analysis.call_graph import CallGraph
 from cc_analyzer.analysis.dominance import DominanceAnalyzer
 from cc_analyzer.analysis.ssa import SSATransformer
@@ -136,10 +143,111 @@ def print_scope_tree_to_lines(scope: Scope, lines: List[str], indent: int = 0):
     prefix = "  " * indent
     lines.append(f"{prefix}Scope: {scope.name}")
     for symbol in scope.symbols.values():
-        sig = f" with sig {symbol.signature}" if symbol.signature else ""
+        sig = f" {symbol.signature}" if symbol.signature else ""
         lines.append(f"{prefix}  [{symbol.kind}] '{symbol.name}' : {symbol.type}{sig} (def: {symbol.definition_loc})")
     for child in scope.children:
         print_scope_tree_to_lines(child, lines, indent + 1)
+
+
+# --- Visual Drawing Helpers for main.py (Section 7 - Bonus) ---
+
+def _render_cfg_png(cfg: CFG, output_dir: str):
+    try:
+        dot = Digraph(name=f"CFG_{cfg.function_name}", format="png")
+        dot.attr(bgcolor="#1e1e1e", fontcolor="#ffffff", rankdir="TB")
+        dot.attr('node', style='filled', fillcolor='#2d2d2d', color='#569cd6', fontcolor='#ffffff', fontname='Consolas', shape='box')
+        dot.attr('edge', color='#a9a9a9', fontcolor='#a9a9a9', fontname='Consolas')
+
+        dot.node("ENTRY", "ENTRY", fillcolor="#1e1e1e", color="#569cd6")
+        dot.node("EXIT", "EXIT", fillcolor="#1e1e1e", color="#569cd6")
+
+        for block in cfg.blocks:
+            if block.id in (0, -1):
+                continue
+            label_parts = [f"Block {block.id} [{block.label}]"]
+            for stmt in block.statements:
+                label_parts.append(f"- {type(stmt).__name__}")
+            dot.node(str(block.id), "\\n".join(label_parts))
+
+        for block in cfg.blocks:
+            src_id = "ENTRY" if block.id == 0 else ("EXIT" if block.id == -1 else str(block.id))
+            for succ in block.successors:
+                dst_id = "ENTRY" if succ.id == 0 else ("EXIT" if succ.id == -1 else str(succ.id))
+                dot.edge(src_id, dst_id)
+
+        dot.render(os.path.join(output_dir, f"cfg_{cfg.function_name}"), cleanup=True)
+    except Exception:
+        pass
+
+def _render_dominators_png(cfg: CFG, analyzer, output_dir: str):
+    try:
+        dot = Digraph(name=f"DOM_{cfg.function_name}", format="png")
+        dot.attr(bgcolor="#1e1e1e", fontcolor="#ffffff", rankdir="TB")
+        dot.attr('node', style='filled', fillcolor='#2d2d2d', color='#569cd6', fontcolor='#ffffff', fontname='Consolas', shape='box')
+        dot.attr('edge', color='#a9a9a9', fontcolor='#a9a9a9', fontname='Consolas')
+
+        for block in cfg.blocks:
+            label = f"Block {block.id}\\n[{block.label}]"
+            dot.node(str(block.id), label)
+
+        tree = analyzer.get_dominator_tree_structure()
+        for parent, children in tree.items():
+            for child in children:
+                dot.edge(str(parent.id), str(child.id))
+
+        dot.render(os.path.join(output_dir, f"dominator_tree_{cfg.function_name}"), cleanup=True)
+    except Exception:
+        pass
+
+def _render_ssa_png(cfg: CFG, transformer, output_dir: str):
+    try:
+        dot = Digraph(name=f"SSA_{cfg.function_name}", format="png")
+        dot.attr(bgcolor="#1e1e1e", fontcolor="#ffffff", rankdir="TB")
+        dot.attr('node', style='filled', fillcolor='#2d2d2d', color='#569cd6', fontcolor='#ffffff', fontname='Consolas', shape='box')
+        dot.attr('edge', color='#a9a9a9', fontcolor='#a9a9a9', fontname='Consolas')
+
+        dot.node("ENTRY", "ENTRY", fillcolor="#1e1e1e", color="#569cd6")
+        dot.node("EXIT", "EXIT", fillcolor="#1e1e1e", color="#569cd6")
+
+        for block in cfg.blocks:
+            if block.id in (0, -1):
+                continue
+            label_parts = [f"Block {block.id} [{block.label}]"]
+            for phi in transformer.phi_functions.get(block, []):
+                label_parts.append(f"- {phi}")
+            for stmt in transformer.ssa_blocks.get(block, []):
+                label_parts.append(f"- {stmt}")
+            dot.node(str(block.id), "\\n".join(label_parts))
+
+        for block in cfg.blocks:
+            src_id = "ENTRY" if block.id == 0 else ("EXIT" if block.id == -1 else str(block.id))
+            for succ in block.successors:
+                dst_id = "ENTRY" if succ.id == 0 else ("EXIT" if succ.id == -1 else str(succ.id))
+                dot.edge(src_id, dst_id)
+
+        dot.render(os.path.join(output_dir, f"ssa_{cfg.function_name}"), cleanup=True)
+    except Exception:
+        pass
+
+def _render_call_graph_png(cg: CallGraph, output_dir: str):
+    try:
+        dot = Digraph(name="Call_Graph", format="png")
+        dot.attr(bgcolor="#1e1e1e", fontcolor="#ffffff")
+        dot.attr('node', style='filled', fillcolor='#2d2d2d', color='#569cd6', fontcolor='#ffffff', fontname='Consolas', shape='box')
+        dot.attr('edge', color='#a9a9a9', fontcolor='#a9a9a9', fontname='Consolas')
+
+        for node in cg.nodes:
+            color = "#dcdcaa" if cg.is_recursive(node) else "#569cd6"
+            label = f"{node} [Recursive]" if cg.is_recursive(node) else node
+            dot.node(node, label, color=color)
+
+        for node in cg.nodes:
+            for callee in cg.get_callees(node):
+                dot.edge(node, callee)
+
+        dot.render(os.path.join(output_dir, "call_graph"), cleanup=True)
+    except Exception:
+        pass
 
 
 def main():
@@ -264,6 +372,10 @@ def main():
             else:
                 f.write("  No dead functions detected.\n")
 
+        # Render physical Call Graph PNG representation (Section 7 - Bonus)
+        if HAS_GRAPHVIZ:
+            _render_call_graph_png(cg, output_dir)
+
         # 4.2 Function-level CFGs and SSA form
         cfg_builder = CFGBuilder()
         for decl in ast_program.declarations:
@@ -271,7 +383,7 @@ def main():
                 func_name = decl.identifier
                 
                 # Build CFG -> cfg_<function_name>.txt
-                cfg = cfg_builder.build(func_name, decl.block)
+                cfg = cfg_builder.build(func_name, decl)
                 with open(os.path.join(output_dir, f"cfg_{func_name}.txt"), "w", encoding="utf-8") as f:
                     f.write(f"Control Flow Graph (CFG) for function '{func_name}':\n")
                     for block in sorted(cfg.blocks, key=lambda b: b.id):
@@ -300,7 +412,13 @@ def main():
                             f.write(f"    - {stmt}\n")
                         f.write(f"    Successors: {', '.join([str(s.id) for s in block.successors]) or 'None'}\n")
 
-    print(f"Compilation and Middle-End analysis complete! All logs successfully generated inside directory '{output_dir}/'.")
+                # Render physical CFG, Dominator Tree, and SSA PNG representations (Section 7 - Bonus)
+                if HAS_GRAPHVIZ:
+                    _render_cfg_png(cfg, output_dir)
+                    _render_dominators_png(cfg, dom_analyzer, output_dir)
+                    _render_ssa_png(cfg, ssa_transformer, output_dir)
+
+    print(f"\nCompilation and Middle-End analysis complete! All logs successfully generated inside directory '{output_dir}/'.")
 
 if __name__ == "__main__":
     main()
