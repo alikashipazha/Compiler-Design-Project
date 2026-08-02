@@ -301,8 +301,8 @@ class Parser:
             op_token = self._previous()
             value = self._assignment()
             
-            # Verify assignment is targeting a valid lvalue
-            if isinstance(expr_node, (Identifier, MemberAccessExpr, ArrayAccessExpr)):
+            # Verify assignment target is a valid lvalue (including dereferenced pointer UnaryExpr)
+            if isinstance(expr_node, (Identifier, MemberAccessExpr, ArrayAccessExpr)) or (isinstance(expr_node, UnaryExpr) and expr_node.operator == "*"):
                 return AssignmentExpr(expr_node, op_token.lexeme, value, op_token.location)
             else:
                 self._error(op_token, "Invalid assignment target")
