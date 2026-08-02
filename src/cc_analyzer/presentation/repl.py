@@ -1,5 +1,14 @@
 import sys
+import os
 from typing import Optional, List
+
+# Safe import of Graphviz to ensure 100% stability
+try:
+    from graphviz import Digraph
+    HAS_GRAPHVIZ = True
+except ImportError:
+    HAS_GRAPHVIZ = False
+
 from cc_analyzer.core.location import SourceLocation
 from cc_analyzer.core.tokens import TokenType, Token
 from cc_analyzer.core.lexer import Lexer
@@ -107,6 +116,9 @@ class CommandLineRepl:
                 builder = CFGBuilder()
                 cfg = builder.build(func_name, func_decl.block)
                 
+                # Render physical PNG representation
+                self._render_cfg_png(cfg)
+
                 output = [f"CFG for function '{func_name}':"]
                 for block in cfg.blocks:
                     succs = [str(s.id) for s in block.successors]
@@ -132,6 +144,9 @@ class CommandLineRepl:
                 analyzer = DominanceAnalyzer(cfg)
                 analyzer.analyze()
                 
+                # Render physical PNG representation
+                self._render_dominators_png(cfg, analyzer)
+
                 output = [f"Dominance Analysis for function '{func_name}' (Lengauer-Tarjan):"]
                 output.append("  1. Immediate Dominators (idom):")
                 for block in sorted(cfg.blocks, key=lambda b: b.id):
@@ -176,6 +191,9 @@ class CommandLineRepl:
                 transformer = SSATransformer(cfg, dom_analyzer)
                 transformer.transform()
                 
+                # Render physical PNG representation
+                self._render_ssa_png(cfg, transformer)
+
                 output = [f"Static Single Assignment (SSA Form) for function '{func_name}':"]
                 for block in sorted(cfg.blocks, key=lambda b: b.id):
                     output.append(f"  Block {block.id} [{block.label}]:")
@@ -197,6 +215,10 @@ class CommandLineRepl:
             elif cmd == "show-callgraph":
                 cg = CallGraph()
                 cg.build(self.ast_program)
+                
+                # Render physical PNG representation
+                self._render_call_graph_png(cg)
+
                 output = ["Program-Wide Call Graph:"]
                 for node in sorted(cg.nodes):
                     callees = sorted(list(cg.get_callees(node)))
@@ -306,6 +328,135 @@ class CommandLineRepl:
 
         return "\n".join(output)
 
+    # --- Graphviz Visual Drawing Rendering Helpers ---
+
+    def _render_cfg_png(self, cfg: CFG):
+        """Silently renders the CFG into a beautiful dark-themed PNG inside output/."""
+        if not HAS_GRAPHVIZ:
+            print("\n[Notice: Install 'graphviz' library and binary to automatically export PNG flowcharts!]")
+            return
+        try:
+            dot = Digraph(name=f"CFG_{cfg.function_name}", format="png")
+            dot.attr(bgcolor="#1e1e1e", fontcolor="#ffffff", rankdir="TB")
+            dot.attr('node', style='filled', fillcolor='#2d2d2d', color='#569cd6', fontcolor='#ffffff', fontname='Consolas', shape='box')
+            dot.attr('edge', color='#a9a9a9', fontcolor='#a9a9a9', fontname='Consolas')
+
+            # Build nodes
+            dot.node("ENTRY", "ENTRY", fillcolor="#1e1e1e", color="#569cd6")
+            dot.node("EXIT", "EXIT", fillcolor="#1e1e1e", color="#569cd6")
+
+            for block in cfg.blocks:
+                if block.id in (0, -1):
+                    continue
+                label_parts = [f"Block {block.id} [{block.label}]"]
+                for stmt in block.statements:
+                    label_parts.append(f"- {type(stmt).__name__}")
+                dot.node(str(block.id), "\\n".join(label_parts))
+
+            # Build edges
+            for block in cfg.blocks:
+                src_id = "ENTRY" if block.id == 0 else ("EXIT" if block.id == -1 else str(block.id))
+                for succ in block.successors:
+                    dst_id = "ENTRY" if succ.id == 0 else ("EXIT" if succ.id == -1 else str(succ.id))
+                    dot.edge(src_id, dst_id)
+
+            os.makedirs("output", exist_ok=True)
+            dot.render(os.path.join("output", f"cfg_{cfg.function_name}"), cleanup=True)
+            print(f"[Visual Graph Saved: 'output/cfg_{cfg.function_name}.png']")
+        except Exception as e:
+            print(f"[Visual Graph Warning: Failed to render PNG: {str(e)}]")
+
+    def _render_dominators_png(self, cfg: CFG, analyzer):
+        """Silently renders the Dominator Tree into a beautiful dark-themed PNG inside output/."""
+        if not HAS_GRAPHVIZ:
+            return
+        try:
+            dot = Digraph(name=f"DOM_{cfg.function_name}", format="png")
+            dot.attr(bgcolor="#1e1e1e", fontcolor="#ffffff", rankdir="TB")
+            dot.attr('node', style='filled', fillcolor='#2d2d2d', color='#569cd6', fontcolor='#ffffff', fontname='Consolas', shape='box')
+            dot.attr('edge', color='#a9a9a9', fontcolor='#a9a9a9', fontname='Consolas')
+
+            # Create nodes
+            for block in cfg.blocks:
+                label = f"Block {block.id}\\n[{block.label}]"
+                dot.node(str(block.id), label)
+
+            # Create tree edges
+            tree = analyzer.get_dominator_tree_structure()
+            for parent, children in tree.items():
+                for child in children:
+                    dot.edge(str(parent.id), str(child.id))
+
+            os.makedirs("output", exist_ok=True)
+            dot.render(os.path.join("output", f"dominator_tree_{cfg.function_name}"), cleanup=True)
+            print(f"[Visual Graph Saved: 'output/dominator_tree_{cfg.function_name}.png']")
+        except Exception:
+            pass
+
+    def _render_ssa_png(self, cfg: CFG, transformer):
+        """Silently renders the SSA basic blocks into a beautiful dark-themed PNG inside output/."""
+        if not HAS_GRAPHVIZ:
+            return
+        try:
+            dot = Digraph(name=f"SSA_{cfg.function_name}", format="png")
+            dot.attr(bgcolor="#1e1e1e", fontcolor="#ffffff", rankdir="TB")
+            dot.attr('node', style='filled', fillcolor='#2d2d2d', color='#569cd6', fontcolor='#ffffff', fontname='Consolas', shape='box')
+            dot.attr('edge', color='#a9a9a9', fontcolor='#a9a9a9', fontname='Consolas')
+
+            # Build nodes
+            dot.node("ENTRY", "ENTRY", fillcolor="#1e1e1e", color="#569cd6")
+            dot.node("EXIT", "EXIT", fillcolor="#1e1e1e", color="#569cd6")
+
+            for block in cfg.blocks:
+                if block.id in (0, -1):
+                    continue
+                label_parts = [f"Block {block.id} [{block.label}]"]
+                # 1. Add Phis
+                for phi in transformer.phi_functions.get(block, []):
+                    label_parts.append(f"- {phi}")
+                # 2. Add Renamed statements
+                for stmt in transformer.ssa_blocks.get(block, []):
+                    label_parts.append(f"- {stmt}")
+                dot.node(str(block.id), "\\n".join(label_parts))
+
+            # Build edges
+            for block in cfg.blocks:
+                src_id = "ENTRY" if block.id == 0 else ("EXIT" if block.id == -1 else str(block.id))
+                for succ in block.successors:
+                    dst_id = "ENTRY" if succ.id == 0 else ("EXIT" if succ.id == -1 else str(succ.id))
+                    dot.edge(src_id, dst_id)
+
+            os.makedirs("output", exist_ok=True)
+            dot.render(os.path.join("output", f"ssa_{cfg.function_name}"), cleanup=True)
+            print(f"[Visual Graph Saved: 'output/ssa_{cfg.function_name}.png']")
+        except Exception:
+            pass
+
+    def _render_call_graph_png(self, cg: CallGraph):
+        """Silently renders the program Call Graph into a beautiful dark-themed PNG inside output/."""
+        if not HAS_GRAPHVIZ:
+            return
+        try:
+            dot = Digraph(name="Call_Graph", format="png")
+            dot.attr(bgcolor="#1e1e1e", fontcolor="#ffffff")
+            dot.attr('node', style='filled', fillcolor='#2d2d2d', color='#569cd6', fontcolor='#ffffff', fontname='Consolas', shape='box')
+            dot.attr('edge', color='#a9a9a9', fontcolor='#a9a9a9', fontname='Consolas')
+
+            for node in cg.nodes:
+                color = "#dcdcaa" if cg.is_recursive(node) else "#569cd6"
+                label = f"{node} [Recursive]" if cg.is_recursive(node) else node
+                dot.node(node, label, color=color)
+
+            for node in cg.nodes:
+                for callee in cg.get_callees(node):
+                    dot.edge(node, callee)
+
+            os.makedirs("output", exist_ok=True)
+            dot.render(os.path.join("output", "call_graph"), cleanup=True)
+            print(f"[Visual Graph Saved: 'output/call_graph.png']")
+        except Exception:
+            pass
+
     def interactive_loop(self):
         """Standard line reading loop for terminal execution."""
         print("Welcome to CC-IDE Middle-End interactive REPL console!")
@@ -324,3 +475,7 @@ class CommandLineRepl:
             except (KeyboardInterrupt, EOFError):
                 print("\nExiting CC-IDE REPL.")
                 break
+
+if __name__ == "__main__":
+    repl = CommandLineRepl()
+    repl.interactive_loop()
