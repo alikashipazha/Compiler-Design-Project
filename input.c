@@ -1,8 +1,5 @@
 #include <stdio.h>
 
-void func1() {
-    printf("Enter two positive integers: ");
-}
 int main() {
     // Each variable is declared on its own line (C Subset EBNF rules)
     int n1;
@@ -16,6 +13,8 @@ int main() {
     // Standard if-else statement instead of ternary operator
     if (n1 > n2) {
         max = n1;
+    } else if (n1 == n2) {
+        max = 0;
     } else {
         max = n2;
     }
@@ -29,4 +28,8 @@ int main() {
     printf("The LCM of %d and %d is %d.", n1, n2, lcm);
 
     return 0;
+}
+
+void func1() {
+    printf("Enter two positive integers: ");
 }
