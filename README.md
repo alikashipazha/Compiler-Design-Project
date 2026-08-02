@@ -5,7 +5,7 @@ This repository contains the implementation of the compiler design project for t
 * **Semester:** Spring Semester 1404–1405
 * **Instructor:** Dr. Alaeiyan
 
-> ## Team Members
+> ## Project Developer
 > * **Ali Kashi Pazha** (Student ID: `40224641`)
 
 ---
