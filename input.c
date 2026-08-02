@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-int main() {
+int main() {@
     // Each variable is declared on its own line (C Subset EBNF rules)
     int n1;
     int n2;
