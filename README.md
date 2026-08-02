@@ -161,6 +161,8 @@ Once the REPL is running, you can interact with the system using these commands:
 | `detect <code>` | Predicts source language (C/Python/Java) with % score. | `detect def f(): pass` |
 | `dead-code` | Reports dead functions, unreachable blocks & unused vars. | `dead-code` |
 | `diagnostics` | Prints accumulated lexical, syntactic, and semantic issues. | `diagnostics` |
+| `show-ast` | Computes and displays the Abstract Syntax Tree (AST). | `show-ast` |
+| `show-symboltable` | Computes and displays the Hierarchical Symbol Table & Scopes. | `show-symboltable` |
 | `help` | Displays help usage information. | `help` |
 | `exit` | Closes the REPL console. | `exit` |
 
@@ -180,7 +182,9 @@ python main.py input.c
 Upon execution, a directory named **`output/`** will be automatically created, populated with the following physical compilations:
 *   `output/tokens.txt` & `output/lexical_errors.txt`: Full token stream tables and logged lexical failures.
 *   `output/syntax_errors.txt` & `output/parse_tree.txt`: Full parser recovery diagnostics and an ASCII Abstract Syntax Tree (AST).
+*   `output/ast.png`: Graphical dark-themed representation of the complete AST (Section 7 - Bonus).
 *   `output/semantic_errors.txt` & `output/symbol_table.txt`: Enforced C type checker issues and full hierarchical scope variables registry.
+*   `output/symbol_table.png`: ID-safe, graphical dark-themed representation of Scopes and Symbol tables (Section 7 - Bonus).
 *   `output/call_graph.txt` & `output/call_graph.png`: Program-wide function call adjacencies, recursions, and strongly connected components (SCCs) as both structured text and a visual dark-themed flowchart diagram.
 *   `output/cfg_<function_name>.txt` & `output/cfg_<function_name>.png`: Control Flow Graph basic blocks mapped with their actual C source codes and branch/loop edges.
 *   `output/dominator_tree_<function_name>.txt` & `output/dominator_tree_<function_name>.png`: Lengauer-Tarjan computed immediate dominators (`idom`) and frontiers.
