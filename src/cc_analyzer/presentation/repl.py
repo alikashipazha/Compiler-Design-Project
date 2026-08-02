@@ -1,6 +1,7 @@
 import sys
 import os
 from typing import Optional, List
+from cc_analyzer.presentation.visualizer import ASTPrinter, ASTVisualizer, _render_symbol_table_png, HAS_GRAPHVIZ
 
 # Safe import of Graphviz to ensure 100% stability
 try:
@@ -246,6 +247,34 @@ class CommandLineRepl:
                     output.append(f"  [{d['severity']}] Line {d['line']}, Col {d['column']}: {d['message']} (len={d['length']})")
                 return "\n".join(output)
 
+            elif cmd == "show-ast":
+                printer = ASTPrinter()
+                # Render physical PNG representation
+                self._render_ast_png(self.ast_program)
+                return f"Abstract Syntax Tree (AST):\n{printer.print_node(self.ast_program)}"
+
+            elif cmd == "show-symboltable":
+                output = []
+                
+                def print_scope_tree_to_lines(scope: Scope, lines: List[str], indent: int = 0):
+                    prefix = "  " * indent
+                    lines.append(f"{prefix}Scope: {scope.name}")
+                    for symbol in scope.symbols.values():
+                        sig = f" {symbol.signature}" if symbol.signature else ""
+                        lines.append(f"{prefix}  [{symbol.kind}] '{symbol.name}' : {symbol.type}{sig} (def: {symbol.definition_loc})")
+                    for child in scope.children:
+                        print_scope_tree_to_lines(child, lines, indent + 1)
+                        
+                # Corrected: Refer to self.engine.type_checker
+                print_scope_tree_to_lines(self.engine.type_checker.global_scope, output)
+                
+                # Render physical PNG representation (ID-safe)
+                if HAS_GRAPHVIZ:
+                    # Corrected: Refer to self.engine.type_checker
+                    _render_symbol_table_png(self.engine.type_checker.global_scope, "output")
+                    print("[Visual Graph Saved: 'output/symbol_table.png']")
+                return f"Hierarchical Symbol Table & Scopes:\n" + "\n".join(output)
+
             else:
                 return f"Error: Unrecognized command '{cmd}'. Type 'help' for usage."
 
@@ -268,6 +297,8 @@ class CommandLineRepl:
   show-callgraph                 Constructs and displays the program-wide Call Graph.
   dead-code                      Detects dead functions, unreachable blocks, unused vars & uninit reads.
   diagnostics                    Prints all accumulated lexical, syntactic, and semantic diagnostics.
+  show-ast                       Computes and displays the Abstract Syntax Tree (AST).
+  show-symboltable               Computes and displays the Hierarchical Symbol Table & Scopes.
   help                           Shows this helper usage information.
   exit                           Exits the line loop."""
 
@@ -475,6 +506,17 @@ class CommandLineRepl:
             except (KeyboardInterrupt, EOFError):
                 print("\nExiting CC-IDE REPL.")
                 break
+
+    def _render_ast_png(self, ast_program: Program):
+        """Silently renders the AST into a beautiful dark-themed PNG inside output/."""
+        if not HAS_GRAPHVIZ:
+            return
+        try:
+            visualizer = ASTVisualizer()
+            visualizer.visualize(ast_program, "output")
+            print("[Visual Graph Saved: 'output/ast.png']")
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     repl = CommandLineRepl()
