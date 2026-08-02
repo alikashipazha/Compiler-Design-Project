@@ -47,7 +47,7 @@ A highly modular, professional-grade **Compiler Front-End** and **Static Program
 *   **Dominator Tree & Dominance Frontiers**: Computes immediate dominators (`idom`) using the mathematical **Lengauer-Tarjan** algorithm and extracts dominance frontiers.
 *   **Automatic Language Detection**: A statistical heuristic classifier identifying whether an unlabeled file is C, Python, or Java based on keyword weights, colons, shebangs, and curly brace frequencies.
 *   **Docker Containerization**: Containers the environment to compile, test, and run the REPL interactively on any machine with zero local setup.
-*   **CI/CD Pipeline with GitHub Pages**: Runs 79 automated tests with code coverage metrics upon every commit, generating a highlighted HTML webpage of a canonical C source code deployed automatically to GitHub Pages.
+*   **CI/CD Pipeline with GitHub Pages**: Runs 279 automated tests with code coverage metrics upon every commit, generating a highlighted HTML webpage of a canonical C source code deployed automatically to GitHub Pages.
 
 ---
 
