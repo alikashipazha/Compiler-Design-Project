@@ -83,7 +83,7 @@ Compiler-Design-Project/
 │           ├── intellisense.py
 │           ├── symbol_table.py
 │           └── type_checker.py
-├── tests/                      # Automated testing suite (79 tests)
+├── tests/                      # Automated testing suite (179 tests)
 │   ├── canonical_test.c        # C benchmark file for HTML page
 │   ├── test_call_graph.py
 │   ├── test_cfg.py
@@ -166,9 +166,31 @@ Once the REPL is running, you can interact with the system using these commands:
 
 ---
 
+## 🚀 Master Compiler Execution (main.py)
+
+Instead of using the interactive REPL, you can run the compiler in **batch processing mode** to compile a C source file (e.g. `input.c`) and write out all intermediate compilations (tokens, syntax trees, symbol tables, and graphs) directly to disk.
+
+### 1. Compile C Source File
+Place your C subset program into a file (e.g. `input.c` at the root directory), and execute:
+```bash
+python main.py input.c
+```
+
+### 2. Output Artifacts Generated
+Upon execution, a directory named **`output/`** will be automatically created, populated with the following physical compilations:
+*   `output/tokens.txt` & `output/lexical_errors.txt`: Full token stream tables and logged lexical failures.
+*   `output/syntax_errors.txt` & `output/parse_tree.txt`: Full parser recovery diagnostics and an ASCII Abstract Syntax Tree (AST).
+*   `output/semantic_errors.txt` & `output/symbol_table.txt`: Enforced C type checker issues and full hierarchical scope variables registry.
+*   `output/call_graph.txt` & `output/call_graph.png`: Program-wide function call adjacencies, recursions, and strongly connected components (SCCs) as both structured text and a visual dark-themed flowchart diagram.
+*   `output/cfg_<function_name>.txt` & `output/cfg_<function_name>.png`: Control Flow Graph basic blocks mapped with their actual C source codes and branch/loop edges.
+*   `output/dominator_tree_<function_name>.txt` & `output/dominator_tree_<function_name>.png`: Lengauer-Tarjan computed immediate dominators (`idom`) and frontiers.
+*   `output/ssa_<function_name>.txt` & `output/ssa_<function_name>.png`: Full Static Single Assignment (SSA) form displaying variables renaming subscripts ($x_1, x_2$) and placed $\phi$-functions (`x_3 = phi(...)`).
+
+---
+
 ## 🧪 Testing & Local Coverage
 
-The project is backed by a **comprehensive suite of 79 unit and integration tests** covering every compiler pass, middle-end graph, and IDE feature.
+The project is backed by a **comprehensive suite of 179 unit and integration tests** covering every compiler pass, middle-end graph, and IDE feature.
 
 ### 1. Run All Tests
 Execute `pytest` in the root directory:
